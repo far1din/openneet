@@ -3,6 +3,8 @@ import { useOpenClaw } from "@/hooks/use-open-claw";
 import { User, Clock } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 // Matches the actual Gateway sessions.list response shape
 type Session = {
@@ -67,7 +69,7 @@ export default function SessionList({ onSelectSession, activeSessionKey }: Sessi
     const formatTime = (ts?: number) => {
         if (!ts) return "";
         try {
-            return new Date(ts).toLocaleTimeString();
+            return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } catch {
             return "";
         }
@@ -85,61 +87,61 @@ export default function SessionList({ onSelectSession, activeSessionKey }: Sessi
     };
 
     return (
-        <div className="w-80 border-r border-gray-200 h-full flex flex-col bg-gray-50/50">
-            <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white">
-                <h2 className="font-semibold text-gray-800">Sessions</h2>
+        <div className="w-80 border-r border-border h-full flex flex-col bg-muted/30">
+            <div className="p-4 border-b border-border flex justify-between items-center bg-background shrink-0">
+                <h2 className="font-semibold text-foreground">Sessions</h2>
                 <div className="flex items-center space-x-2">
                     <span
                         className={clsx(
                             "w-2.5 h-2.5 rounded-full",
-                            isConnected ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-red-500"
+                            isConnected ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-destructive"
                         )}
                         title={isConnected ? "Connected" : "Disconnected"}
                     />
                 </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                {!isConnected && <div className="text-center text-sm text-gray-400 py-8">Connecting to VPS...</div>}
-                {isConnected && sessions.length === 0 && !loading && (
-                    <div className="text-center text-sm text-gray-400 py-8">No active sessions found</div>
-                )}
-                {sessions.map((session) => (
-                    <button
-                        key={session.key}
-                        onClick={() => onSelectSession(session.key)}
-                        className={twMerge(
-                            "w-full text-left p-3 rounded-xl transition-all duration-200 flex items-start space-x-3 border border-transparent hover:bg-white hover:border-gray-200 hover:shadow-sm cursor-pointer",
-                            activeSessionKey === session.key &&
-                                "bg-white border-blue-200 shadow-md ring-1 ring-blue-100"
-                        )}
-                    >
-                        <div
+            <ScrollArea className="flex-1 min-h-0">
+                <div className="p-3 space-y-2">
+                    {!isConnected && <div className="text-center text-sm text-muted-foreground py-8">Connecting to VPS...</div>}
+                    {isConnected && sessions.length === 0 && !loading && (
+                        <div className="text-center text-sm text-muted-foreground py-8">No active sessions found</div>
+                    )}
+                    {sessions.map((session) => (
+                        <button
+                            key={session.key}
+                            onClick={() => onSelectSession(session.key)}
                             className={twMerge(
-                                "p-2 rounded-lg transition-colors",
-                                activeSessionKey === session.key
-                                    ? "bg-blue-600 text-white"
-                                    : "bg-gray-100 text-gray-500"
+                                "w-full text-left p-3 rounded-xl transition-all duration-200 flex items-start space-x-3 border border-transparent hover:bg-accent hover:text-accent-foreground cursor-pointer group",
+                                activeSessionKey === session.key &&
+                                    "bg-background border-border shadow-sm ring-1 ring-border"
                             )}
                         >
-                            <User size={18} />
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                            <div
-                                className={twMerge(
-                                    "font-medium truncate",
-                                    activeSessionKey === session.key ? "text-gray-900" : "text-gray-700"
-                                )}
-                            >
-                                {getSessionTitle(session)}
+                            <Avatar className="h-9 w-9 bg-primary/10 text-primary rounded-lg shrink-0">
+                                <AvatarFallback className={twMerge(
+                                    "rounded-lg",
+                                    activeSessionKey === session.key ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground group-hover:bg-background"
+                                )}>
+                                    <User size={16} />
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 overflow-hidden min-w-0">
+                                <div
+                                    className={twMerge(
+                                        "font-medium truncate text-sm",
+                                        activeSessionKey === session.key ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
+                                    )}
+                                >
+                                    {getSessionTitle(session)}
+                                </div>
+                                <div className="text-xs text-muted-foreground/70 flex items-center mt-1">
+                                    <Clock size={10} className="mr-1" />
+                                    {formatTime(session.updatedAt)}
+                                </div>
                             </div>
-                            <div className="text-xs text-gray-400 flex items-center mt-1">
-                                <Clock size={10} className="mr-1" />
-                                {formatTime(session.updatedAt)}
-                            </div>
-                        </div>
-                    </button>
-                ))}
-            </div>
+                        </button>
+                    ))}
+                </div>
+            </ScrollArea>
         </div>
     );
 }

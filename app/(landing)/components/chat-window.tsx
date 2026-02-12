@@ -2,6 +2,11 @@ import { useEffect, useState, useRef } from "react";
 import { useOpenClaw } from "@/hooks/use-open-claw";
 import { Send, Bot, User as UserIcon } from "lucide-react";
 import { clsx } from "clsx";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 interface ChatWindowProps {
     sessionKey: string | null;
@@ -157,12 +162,12 @@ export default function ChatWindow({ sessionKey }: ChatWindowProps) {
 
     if (!sessionKey) {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 text-gray-400 p-8 text-center animate-in fade-in duration-500">
-                <div className="bg-white p-4 rounded-full shadow-sm mb-4">
-                    <Bot size={48} className="text-gray-300" />
+            <div className="flex-1 flex flex-col items-center justify-center bg-muted/10 text-muted-foreground p-8 text-center animate-in fade-in duration-500">
+                <div className="bg-background p-4 rounded-full shadow-sm mb-4 border border-border">
+                    <Bot size={48} className="text-muted-foreground/50" />
                 </div>
-                <h3 className="text-lg font-medium text-gray-600">No Session Selected</h3>
-                <p className="max-w-sm mt-2">
+                <h3 className="text-lg font-medium text-foreground">No Session Selected</h3>
+                <p className="max-w-sm mt-2 text-muted-foreground">
                     Select an active agent session from the sidebar to view history and start chatting.
                 </p>
             </div>
@@ -170,16 +175,18 @@ export default function ChatWindow({ sessionKey }: ChatWindowProps) {
     }
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-white relative">
+        <div className="flex-1 flex flex-col h-full bg-background relative">
             {/* Header */}
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white/80 backdrop-blur-md sticky top-0 z-10">
-                <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200">
-                        <Bot size={20} />
-                    </div>
+            <div className="px-6 py-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+                <div className="flex items-center space-x-3 max-w-4xl mx-auto w-full">
+                    <Avatar className="h-10 w-10 border border-border shadow-sm">
+                        <AvatarFallback className="bg-primary/10 text-primary">
+                            <Bot size={20} />
+                        </AvatarFallback>
+                    </Avatar>
                     <div>
-                        <h3 className="font-bold text-gray-900">{sessionKey}</h3>
-                        <div className="flex items-center text-xs text-green-600">
+                        <h3 className="font-bold text-foreground text-sm">{sessionKey}</h3>
+                        <div className="flex items-center text-xs text-green-600 font-medium">
                             <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
                             Active Session
                         </div>
@@ -188,68 +195,73 @@ export default function ChatWindow({ sessionKey }: ChatWindowProps) {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50">
-                {loading && <div className="text-center text-sm text-gray-400 py-4">Loading history...</div>}
-                {messages.map((msg, idx) => (
-                    <div
-                        key={msg.id || idx}
-                        className={clsx("flex w-full", msg.role === "user" ? "justify-end" : "justify-start")}
-                    >
+            <ScrollArea className="flex-1 bg-muted/5 p-6">
+                <div className="space-y-6 max-w-4xl mx-auto w-full">
+                    {loading && <div className="text-center text-sm text-muted-foreground py-4">Loading history...</div>}
+                    {messages.map((msg, idx) => (
                         <div
-                            className={clsx(
-                                "flex max-w-[80%] md:max-w-[70%]",
-                                msg.role === "user" ? "flex-row-reverse" : "flex-row"
-                            )}
+                            key={msg.id || idx}
+                            className={clsx("flex w-full", msg.role === "user" ? "justify-end" : "justify-start")}
                         >
                             <div
                                 className={clsx(
-                                    "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-1 shadow-sm",
-                                    msg.role === "user"
-                                        ? "ml-3 bg-blue-600 text-white"
-                                        : "mr-3 bg-white border border-gray-200 text-indigo-600"
+                                    "flex max-w-[80%] md:max-w-[70%]",
+                                    msg.role === "user" ? "flex-row-reverse" : "flex-row"
                                 )}
                             >
-                                {msg.role === "user" ? <UserIcon size={14} /> : <Bot size={16} />}
-                            </div>
+                                <Avatar className={clsx(
+                                    "h-8 w-8 mt-1 border shadow-sm shrink-0",
+                                    msg.role === "user" ? "ml-3 border-transparent" : "mr-3 border-border"
+                                )}>
+                                    <AvatarFallback className={clsx(
+                                        "text-xs font-medium",
+                                        msg.role === "user" 
+                                            ? "bg-primary text-primary-foreground" 
+                                            : "bg-background text-foreground"
+                                    )}>
+                                        {msg.role === "user" ? <UserIcon size={14} /> : <Bot size={16} />}
+                                    </AvatarFallback>
+                                </Avatar>
 
-                            <div
-                                className={clsx(
-                                    "p-4 shadow-sm text-[15px] leading-relaxed whitespace-pre-wrap",
-                                    msg.role === "user"
-                                        ? "bg-blue-600 text-white rounded-2xl rounded-tr-sm"
-                                        : "bg-white border border-gray-100 text-gray-800 rounded-2xl rounded-tl-sm"
-                                )}
-                            >
-                                {msg.content}
+                                <Card
+                                    className={clsx(
+                                        "p-4 shadow-sm text-[15px] leading-relaxed whitespace-pre-wrap border-0",
+                                        msg.role === "user"
+                                            ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
+                                            : "bg-card text-card-foreground border border-border rounded-2xl rounded-tl-sm"
+                                    )}
+                                >
+                                    {msg.content}
+                                </Card>
                             </div>
                         </div>
-                    </div>
-                ))}
-                <div ref={messagesEndRef} />
-            </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                </div>
+            </ScrollArea>
 
             {/* Input */}
-            <div className="p-4 bg-white border-t border-gray-100">
-                <div className="max-w-4xl mx-auto relative flex items-center bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-50/50 transition-all duration-200">
-                    <input
-                        type="text"
+            <div className="p-4 bg-background border-t border-border">
+                <div className="max-w-4xl mx-auto flex items-center gap-2 w-full">
+                    <Input
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleSend()}
                         placeholder="Type a message to the agent..."
-                        className="flex-1 bg-transparent border-none py-4 px-5 focus:ring-0 text-gray-800 placeholder-gray-400"
+                        className="py-6 rounded-xl bg-muted/30 focus-visible:ring-primary/20 border-border"
                         disabled={loading}
                     />
-                    <button
+                    <Button
                         onClick={handleSend}
                         disabled={!inputValue.trim()}
-                        className="mr-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:shadow-blue-200 active:scale-95"
+                        className="h-12 w-12 rounded-xl shrink-0"
+                        size="icon"
                     >
                         <Send size={18} />
-                    </button>
+                    </Button>
                 </div>
                 <div className="text-center mt-2">
-                    <span className="text-xs text-gray-400">Press Enter to send</span>
+                    <span className="text-xs text-muted-foreground">Press Enter to send</span>
                 </div>
             </div>
         </div>
