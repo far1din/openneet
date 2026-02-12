@@ -1,12 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import { useOpenClaw } from "@/hooks/use-open-claw";
-import { Send, Bot, User as UserIcon } from "lucide-react";
+import { Bot, User as UserIcon } from "lucide-react";
 import { clsx } from "clsx";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import ChatInput from "./chat-input";
 
 interface ChatWindowProps {
     sessionKey: string | null;
@@ -175,7 +174,7 @@ export default function ChatWindow({ sessionKey }: ChatWindowProps) {
     }
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-background relative">
+        <div className="flex flex-col flex-1 h-full min-h-0 bg-background relative">
             {/* Header */}
             <div className="px-6 py-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
                 <div className="flex items-center space-x-3 max-w-4xl mx-auto w-full">
@@ -197,7 +196,9 @@ export default function ChatWindow({ sessionKey }: ChatWindowProps) {
             {/* Messages */}
             <ScrollArea className="flex-1 bg-muted/5 p-6">
                 <div className="space-y-6 max-w-4xl mx-auto w-full">
-                    {loading && <div className="text-center text-sm text-muted-foreground py-4">Loading history...</div>}
+                    {loading && (
+                        <div className="text-center text-sm text-muted-foreground py-4">Loading history...</div>
+                    )}
                     {messages.map((msg, idx) => (
                         <div
                             key={msg.id || idx}
@@ -209,16 +210,20 @@ export default function ChatWindow({ sessionKey }: ChatWindowProps) {
                                     msg.role === "user" ? "flex-row-reverse" : "flex-row"
                                 )}
                             >
-                                <Avatar className={clsx(
-                                    "h-8 w-8 mt-1 border shadow-sm shrink-0",
-                                    msg.role === "user" ? "ml-3 border-transparent" : "mr-3 border-border"
-                                )}>
-                                    <AvatarFallback className={clsx(
-                                        "text-xs font-medium",
-                                        msg.role === "user" 
-                                            ? "bg-primary text-primary-foreground" 
-                                            : "bg-background text-foreground"
-                                    )}>
+                                <Avatar
+                                    className={clsx(
+                                        "h-8 w-8 mt-1 border shadow-sm shrink-0",
+                                        msg.role === "user" ? "ml-3 border-transparent" : "mr-3 border-border"
+                                    )}
+                                >
+                                    <AvatarFallback
+                                        className={clsx(
+                                            "text-xs font-medium",
+                                            msg.role === "user"
+                                                ? "bg-primary text-primary-foreground"
+                                                : "bg-background text-foreground"
+                                        )}
+                                    >
                                         {msg.role === "user" ? <UserIcon size={14} /> : <Bot size={16} />}
                                     </AvatarFallback>
                                 </Avatar>
@@ -241,44 +246,12 @@ export default function ChatWindow({ sessionKey }: ChatWindowProps) {
             </ScrollArea>
 
             {/* Input */}
-            {/* Input - Gemini Style */}
-            <div className="p-4 bg-background pb-6">
-                <div className="max-w-4xl mx-auto w-full relative">
-                     <div className="relative flex items-end w-full p-2 bg-muted/40 border border-border/40 rounded-3xl focus-within:ring-1 focus-within:ring-ring/20 focus-within:bg-muted/60 transition-all shadow-sm">
-                         {/* Placeholder for future attachments */}
-                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-muted-foreground hover:bg-background shrink-0 mb-0.5 ml-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                        </Button>
-                        
-                        <Input
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                            placeholder="Type a message to the agent..."
-                            className="border-0 focus-visible:ring-0 shadow-none bg-transparent py-4 h-12 min-h-[48px] resize-none text-base"
-                            disabled={loading}
-                        />
-
-                        <Button
-                            onClick={handleSend}
-                            disabled={!inputValue.trim()}
-                            className={clsx(
-                                "h-10 w-10 rounded-full shrink-0 mb-0.5 transition-all duration-200",
-                                inputValue.trim() 
-                                    ? "bg-primary text-primary-foreground hover:bg-primary/90" 
-                                    : "bg-transparent text-muted-foreground hover:bg-background"
-                            )}
-                            size="icon"
-                            variant={inputValue.trim() ? "default" : "ghost"}
-                        >
-                            <Send size={18} />
-                        </Button>
-                     </div>
-                </div>
-                <div className="text-center mt-3">
-                    <span className="text-[10px] text-muted-foreground/60">OpenClaw can make mistakes. Check important info.</span>
-                </div>
-            </div>
+            <ChatInput
+                inputValue={inputValue}
+                setInputValue={setInputValue}
+                handleSend={handleSend}
+                loading={loading}
+            />
         </div>
     );
 }
