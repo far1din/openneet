@@ -87,6 +87,8 @@ export function AppSidebar({ onSelectSession, activeSessionKey, ...props }: AppS
     };
 
     const getSessionTitle = (session: Session) => {
+        console.log(session);
+        if (session.key) return session.key;
         if (session.derivedTitle) return session.derivedTitle;
         if (session.label) return session.label;
         if (session.displayName) return session.displayName;
@@ -118,28 +120,39 @@ export function AppSidebar({ onSelectSession, activeSessionKey, ...props }: AppS
                         {isConnected && sessions.length === 0 && !loading && (
                             <div className="text-center text-sm text-muted-foreground py-8">No active sessions</div>
                         )}
-                        {sessions.map((session) => (
-                            <SidebarMenuItem key={session.key}>
-                                <SidebarMenuButton
-                                    onClick={() => onSelectSession(session.key)}
-                                    isActive={activeSessionKey === session.key}
-                                    className="h-auto py-3 cursor-pointer"
-                                >
-                                    <Avatar className="h-8 w-8 rounded-lg">
-                                        <AvatarFallback className="rounded-lg bg-sidebar-primary/10 text-sidebar-primary">
-                                            <User className="size-4" />
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="grid flex-1 text-left text-sm leading-tight">
-                                        <span className="truncate font-medium">{getSessionTitle(session)}</span>
-                                        <span className="truncate text-xs text-muted-foreground flex items-center">
-                                            <Clock className="mr-1 size-3" />
-                                            {formatTime(session.updatedAt)}
-                                        </span>
-                                    </div>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        ))}
+                        {sessions.map((session) => {
+                            const title = getSessionTitle(session);
+
+                            return (
+                                <SidebarMenuItem key={session.key}>
+                                    <SidebarMenuButton
+                                        onClick={() => onSelectSession(session.key)}
+                                        isActive={activeSessionKey === session.key}
+                                        className="h-auto py-3 cursor-pointer"
+                                    >
+                                        <Avatar className="size-12 rounded-lg">
+                                            <AvatarFallback className="rounded-lg bg-sidebar-primary/10 text-sidebar-primary">
+                                                <User className="size-4" />
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="grid flex-1 text-left text-sm leading-tight">
+                                            <span className="truncate font-medium">{title}</span>
+                                            <span className="text-xs truncate text-muted-foreground">
+                                                {session.lastMessagePreview ||
+                                                    session.derivedTitle ||
+                                                    session.label ||
+                                                    session.displayName ||
+                                                    session.friendlyId}
+                                            </span>
+                                            <span className="truncate text-xs text-muted-foreground flex items-center mt-1">
+                                                <Clock className="mr-1 size-3" />
+                                                {formatTime(session.updatedAt)}
+                                            </span>
+                                        </div>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            );
+                        })}
                     </SidebarMenu>
                 </SidebarGroup>
             </SidebarContent>
