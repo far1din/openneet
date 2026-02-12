@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import ChatWindow from "./components/chat-window";
 import SessionList from "./components/session-list";
-import { Button } from "@/components/ui/button";
 
 export default function Home() {
     const [activeSession, setActiveSession] = useState<string | null>(null);
