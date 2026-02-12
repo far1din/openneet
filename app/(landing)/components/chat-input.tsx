@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send } from "lucide-react";
+import { Plus, Send } from "lucide-react";
 import { clsx } from "clsx";
 
 interface ChatInputProps {
@@ -19,22 +19,9 @@ export default function ChatInput({ inputValue, setInputValue, handleSend, loadi
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-10 w-10 rounded-full text-muted-foreground hover:bg-background shrink-0 mb-0.5 ml-1"
+                        className="size-10 rounded-full text-muted-foreground hover:bg-background shrink-0 mb-0.5 ml-1"
                     >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                        >
-                            <path d="M5 12h14" />
-                            <path d="M12 5v14" />
-                        </svg>
+                        <Plus className="size-4" />
                     </Button>
 
                     <Input
