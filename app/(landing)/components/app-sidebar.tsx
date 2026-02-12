@@ -99,8 +99,8 @@ export function AppSidebar({ onSelectSession, activeSessionKey, ...props }: AppS
         <Sidebar collapsible="icon" {...props}>
             <SidebarHeader>
                 <div className="flex items-center gap-2 p-2">
-                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                        <GalleryVerticalEnd className="size-4" />
+                    <div className="flex aspect-square size-12 items-center justify-center rounded-lg bg-card text-sidebar-primary-foreground">
+                        <img src="/logox.png" alt="OpenClaw" className="w-full h-full object-cover" />
                     </div>
                     <div className="grid flex-1 text-left text-sm leading-tight">
                         <span className="truncate font-semibold">OpenClaw</span>
