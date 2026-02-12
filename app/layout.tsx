@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import "./globals.css";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const dmSans = DM_Sans({
     variable: "--font-dm-sans",
@@ -15,7 +16,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
         <html lang="en">
-            <body className={`${dmSans.className} antialiased`}>{children}</body>
+            <body className={`${dmSans.className} antialiased`}>
+                <TooltipProvider>{children}</TooltipProvider>
+            </body>
         </html>
     );
 }

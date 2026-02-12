@@ -87,9 +87,9 @@ export default function SessionList({ onSelectSession, activeSessionKey }: Sessi
     };
 
     return (
-        <div className="w-80 border-r border-border h-full flex flex-col bg-muted/30">
+        <div className="w-full min-w-0 border-r border-border h-full flex flex-col overflow-hidden bg-muted/30">
             <div className="p-4 border-b border-border flex justify-between items-center bg-background shrink-0">
-                <h2 className="font-semibold text-foreground">Sessions</h2>
+                <h2 className="font-semibold text-foreground truncate">Sessions</h2>
                 <div className="flex items-center space-x-2">
                     <span
                         className={clsx(
@@ -100,8 +100,8 @@ export default function SessionList({ onSelectSession, activeSessionKey }: Sessi
                     />
                 </div>
             </div>
-            <ScrollArea className="flex-1 min-h-0">
-                <div className="p-3 space-y-2">
+            <ScrollArea className="flex-1 min-h-0 overflow-hidden">
+                <div className="p-3 space-y-2 min-w-0">
                     {!isConnected && <div className="text-center text-sm text-muted-foreground py-8">Connecting to VPS...</div>}
                     {isConnected && sessions.length === 0 && !loading && (
                         <div className="text-center text-sm text-muted-foreground py-8">No active sessions found</div>
