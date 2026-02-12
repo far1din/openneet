@@ -95,7 +95,7 @@ export default function SessionList({ onSelectSession, activeSessionKey }: Sessi
                             isConnected ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-red-500"
                         )}
                         title={isConnected ? "Connected" : "Disconnected"}
-                    ></span>
+                    />
                 </div>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -108,7 +108,7 @@ export default function SessionList({ onSelectSession, activeSessionKey }: Sessi
                         key={session.key}
                         onClick={() => onSelectSession(session.key)}
                         className={twMerge(
-                            "w-full text-left p-3 rounded-xl transition-all duration-200 flex items-start space-x-3 border border-transparent hover:bg-white hover:border-gray-200 hover:shadow-sm",
+                            "w-full text-left p-3 rounded-xl transition-all duration-200 flex items-start space-x-3 border border-transparent hover:bg-white hover:border-gray-200 hover:shadow-sm cursor-pointer",
                             activeSessionKey === session.key &&
                                 "bg-white border-blue-200 shadow-md ring-1 ring-blue-100"
                         )}
