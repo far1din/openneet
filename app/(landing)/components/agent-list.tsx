@@ -106,9 +106,12 @@ export function AgentList() {
 
     // ---- Handlers passed to dialogs ----
 
-    const handleCreate = async (id: string, workspace?: string) => {
-        const params: Record<string, string> = { id };
-        if (workspace) params.workspace = workspace;
+    const handleCreate = async (name: string) => {
+        const params: Record<string, string | undefined> = {
+            name,
+            workspace: name === "" ? undefined : `/root/.openclaw/workspace-${name.toLowerCase()}`,
+        };
+
         await call("agents.create", params);
         await fetchAgents();
     };
