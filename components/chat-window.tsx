@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useOpenClaw } from "@/hooks/useOpenClaw";
+import { useOpenClaw } from "@/hooks/use-open-claw";
 import { Send, Bot, User as UserIcon } from "lucide-react";
 import { clsx } from "clsx";
 

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import SessionList from '@/components/SessionList';
-import ChatWindow from '@/components/ChatWindow';
+import SessionList from '@/components/session-list';
+import ChatWindow from '@/components/chat-window';
 
 export default function Home() {
   const [activeSession, setActiveSession] = useState<string | null>(null);

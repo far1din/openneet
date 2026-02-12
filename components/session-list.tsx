@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useOpenClaw } from "@/hooks/useOpenClaw";
+import { useOpenClaw } from "@/hooks/use-open-claw";
 import { User, Clock } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
