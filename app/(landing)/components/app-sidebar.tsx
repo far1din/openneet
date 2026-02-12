@@ -130,9 +130,9 @@ export function AppSidebar({ onSelectSession, activeSessionKey, ...props }: AppS
                                     <SidebarMenuButton
                                         onClick={() => onSelectSession(session.key)}
                                         isActive={activeSessionKey === session.key}
-                                        className="h-auto py-3 cursor-pointer"
+                                        className="h-auto py-3 cursor-pointer items-start"
                                     >
-                                        <Avatar className="size-12 rounded-lg">
+                                        <Avatar className="size-8 rounded-lg">
                                             <AvatarFallback className="rounded-lg bg-sidebar-primary/10 text-sidebar-primary">
                                                 <User className="size-4" />
                                             </AvatarFallback>
