@@ -27,6 +27,7 @@ type RequestPromise = {
 
 export function useOpenClaw() {
     const [isConnected, setIsConnected] = useState(false);
+    const [helloPayload, setHelloPayload] = useState<any>(null);
     const socketRef = useRef<WebSocket | null>(null);
     const requestsRef = useRef<Map<string, RequestPromise>>(new Map());
     const listenersRef = useRef<Set<(msg: OpenClawMessage) => void>>(new Set());
@@ -100,6 +101,7 @@ export function useOpenClaw() {
                 requestsRef.current.set(CONNECT_ID, {
                     resolve: (payload: any) => {
                         console.log("Handshake successful:", payload);
+                        setHelloPayload(payload);
                         setIsConnected(true);
                     },
                     reject: (err: any) => {
@@ -227,5 +229,5 @@ export function useOpenClaw() {
         };
     }, []);
 
-    return { isConnected, call, subscribe };
+    return { isConnected, call, subscribe, helloPayload };
 }

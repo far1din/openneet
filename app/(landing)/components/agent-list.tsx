@@ -20,7 +20,7 @@ type Agent = {
 };
 
 export function AgentList() {
-    const { call, isConnected } = useOpenClaw();
+    const { call, isConnected, helloPayload } = useOpenClaw();
     const [agents, setAgents] = useState<Agent[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -28,19 +28,54 @@ export function AgentList() {
         if (!isConnected) return;
         setLoading(true);
 
-        try {
-            // Approach A: try the 'status' method which includes per-agent data
-            const res: any = await call("status");
-            console.log("status response:", res);
+        // Log available methods from hello-ok so we can see what the gateway supports
+        const methods: string[] = helloPayload?.features?.methods ?? [];
+        console.log("[AgentList] Available gateway methods:", methods);
 
-            let parsed = parseAgentsFromStatus(res);
-            if (parsed.length > 0) {
-                setAgents(parsed);
-                return;
+        try {
+            // ------------------------------------------------------------------
+            // Attempt 1: try calling 'agents.list' directly (may or may not exist)
+            // ------------------------------------------------------------------
+            try {
+                const res: any = await call("agents.list");
+                console.log("[AgentList] agents.list response:", res);
+                const parsed = parseAgentsList(res);
+                if (parsed.length > 0) {
+                    setAgents(parsed);
+                    return;
+                }
+            } catch (err: any) {
+                console.log("[AgentList] agents.list not available:", err?.message || err?.code || err);
             }
 
-            // Approach B: fall back to deriving agent IDs from session keys
-            console.log("No agents in status response, falling back to sessions...");
+            // ------------------------------------------------------------------
+            // Attempt 2: call 'status' and do a deep scan for agent-like data
+            // ------------------------------------------------------------------
+            try {
+                const res: any = await call("status");
+                console.log("[AgentList] status response (full):", JSON.stringify(res, null, 2));
+
+                const parsed = parseAgentsFromStatus(res);
+                if (parsed.length > 0) {
+                    setAgents(parsed);
+                    return;
+                }
+
+                // Deep scan: recursively find any key that looks like it contains agent entries
+                const deepParsed = deepScanForAgents(res);
+                if (deepParsed.length > 0) {
+                    console.log("[AgentList] Found agents via deep scan:", deepParsed);
+                    setAgents(deepParsed);
+                    return;
+                }
+            } catch (err: any) {
+                console.log("[AgentList] status method failed:", err?.message || err?.code || err);
+            }
+
+            // ------------------------------------------------------------------
+            // Attempt 3: fall back to deriving agent IDs from session keys
+            // ------------------------------------------------------------------
+            console.log("[AgentList] Falling back to session-key derivation (only shows agents with sessions)");
             const sessionsRes: any = await call("sessions.list", { limit: 100 });
             const sessionList: any[] = sessionsRes?.sessions ?? (Array.isArray(sessionsRes) ? sessionsRes : []);
 
@@ -48,7 +83,6 @@ export function AgentList() {
                 ...new Set(
                     sessionList
                         .map((s: any) => {
-                            // Session keys follow the pattern agent:<agentId>:<mainKey>
                             const parts = (s.key || "").split(":");
                             if (parts[0] === "agent" && parts[1]) return parts[1];
                             return null;
@@ -59,7 +93,7 @@ export function AgentList() {
 
             setAgents(agentIds.map((id) => ({ id })));
         } catch (err) {
-            console.error("Failed to fetch agents:", err);
+            console.error("[AgentList] Failed to fetch agents:", err);
         } finally {
             setLoading(false);
         }
@@ -117,35 +151,41 @@ export function AgentList() {
     );
 }
 
-/**
- * Try to extract agent info from the 'status' response payload.
- * The exact shape is not fully documented, so we try several common patterns
- * and log what we find.
- */
+// ---------------------------------------------------------------------------
+// Parsing helpers
+// ---------------------------------------------------------------------------
+
+/** Parse a direct agents.list response */
+function parseAgentsList(res: any): Agent[] {
+    // Could be an array directly, or { agents: [...] }
+    const list = Array.isArray(res) ? res : res?.agents ?? res?.list ?? [];
+    if (!Array.isArray(list)) return [];
+    return list.map((a: any) => ({
+        id: a.id || a.agentId || "unknown",
+        name: a.identity?.name || a.name,
+        emoji: a.identity?.emoji || a.emoji,
+        workspace: a.identity?.workspace || a.workspace,
+    }));
+}
+
+/** Try common patterns in the status response */
 function parseAgentsFromStatus(res: any): Agent[] {
     if (!res) return [];
 
-    // Pattern 1: res.agents is an array of { id, identity: { name, emoji, ... } }
+    // Pattern 1: res.agents is an array
     if (Array.isArray(res.agents)) {
-        return res.agents.map((a: any) => ({
-            id: a.id || a.agentId || "unknown",
-            name: a.identity?.name || a.name,
-            emoji: a.identity?.emoji || a.emoji,
-            workspace: a.identity?.workspace || a.workspace,
-        }));
+        return res.agents.map(toAgent);
     }
 
     // Pattern 2: res.agents is an object keyed by agent id
-    if (res.agents && typeof res.agents === "object" && !Array.isArray(res.agents)) {
+    if (res.agents && typeof res.agents === "object") {
         return Object.entries(res.agents).map(([id, data]: [string, any]) => ({
             id,
-            name: data?.identity?.name || data?.name,
-            emoji: data?.identity?.emoji || data?.emoji,
-            workspace: data?.identity?.workspace || data?.workspace,
+            ...extractIdentity(data),
         }));
     }
 
-    // Pattern 3: res.agentStores or res.sessionStores keyed by agent id
+    // Pattern 3: res.agentStores / res.sessionStores keyed by agent id
     const stores = res.agentStores || res.sessionStores;
     if (stores && typeof stores === "object") {
         return Object.keys(stores).map((id) => ({ id }));
@@ -153,13 +193,76 @@ function parseAgentsFromStatus(res: any): Agent[] {
 
     // Pattern 4: res.config?.agents?.list
     if (Array.isArray(res.config?.agents?.list)) {
-        return res.config.agents.list.map((a: any) => ({
-            id: a.id || "unknown",
-            name: a.identity?.name,
-            emoji: a.identity?.emoji,
-            workspace: a.workspace,
+        return res.config.agents.list.map(toAgent);
+    }
+
+    // Pattern 5: res.overview?.agents or res.data?.agents
+    const nested = res.overview?.agents || res.data?.agents;
+    if (Array.isArray(nested)) {
+        return nested.map(toAgent);
+    }
+    if (nested && typeof nested === "object") {
+        return Object.entries(nested).map(([id, data]: [string, any]) => ({
+            id,
+            ...extractIdentity(data),
         }));
     }
 
     return [];
+}
+
+/**
+ * Deep scan: walk the entire status response looking for anything that
+ * looks like an agent entry (object with an "id" field and optionally "identity").
+ * This is a last resort to discover agent data regardless of nesting.
+ */
+function deepScanForAgents(obj: any, depth = 0): Agent[] {
+    if (depth > 5 || !obj || typeof obj !== "object") return [];
+
+    const results: Agent[] = [];
+    const seen = new Set<string>();
+
+    function walk(val: any, d: number) {
+        if (d > 5 || !val || typeof val !== "object") return;
+
+        // If it looks like an agent entry
+        if (val.id && val.identity && typeof val.identity === "object") {
+            if (!seen.has(val.id)) {
+                seen.add(val.id);
+                results.push(toAgent(val));
+            }
+            return;
+        }
+
+        // If it's an array, check each element
+        if (Array.isArray(val)) {
+            for (const item of val) walk(item, d + 1);
+            return;
+        }
+
+        // Walk object values
+        for (const key of Object.keys(val)) {
+            walk(val[key], d + 1);
+        }
+    }
+
+    walk(obj, 0);
+    return results;
+}
+
+function toAgent(a: any): Agent {
+    return {
+        id: a.id || a.agentId || "unknown",
+        name: a.identity?.name || a.name,
+        emoji: a.identity?.emoji || a.emoji,
+        workspace: a.identity?.workspace || a.workspace,
+    };
+}
+
+function extractIdentity(data: any): Partial<Agent> {
+    return {
+        name: data?.identity?.name || data?.name,
+        emoji: data?.identity?.emoji || data?.emoji,
+        workspace: data?.identity?.workspace || data?.workspace,
+    };
 }
