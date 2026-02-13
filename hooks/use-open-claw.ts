@@ -81,6 +81,9 @@ export function useOpenClaw() {
                         mode: "cli",
                     },
                     auth: { token: ADMIN_TOKEN },
+
+                    role: "operator",
+                    scopes: ["operator.read", "operator.admin", "operator.approvals", "operator.pairing"],
                 },
             };
 
