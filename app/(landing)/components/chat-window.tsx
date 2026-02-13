@@ -1,99 +1,118 @@
 import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import { useOpenClaw } from "@/hooks/use-open-claw";
-import { Bot, User as UserIcon } from "lucide-react";
-import { clsx } from "clsx";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Card } from "@/components/ui/card";
+import { Bot } from "lucide-react";
 import ChatInput from "./chat-input";
+import { ChatBubble, ThinkingIndicator, type Message } from "./chat-bubble";
 
 interface ChatWindowProps {
     sessionKey: string | null;
 }
 
-type Message = {
-    role: "user" | "assistant" | "system" | "tool";
-    content: string;
-    id?: string;
-    timestamp?: number;
-};
+// ---------------------------------------------------------------------------
+// Content extraction -- separates thinking from visible text
+// ---------------------------------------------------------------------------
 
-function extractTextFromContent(content: unknown): string {
-    if (typeof content === "string") return content;
+function extractContent(content: unknown): { text: string; thinking?: string } {
+    if (typeof content === "string") return { text: content };
+
     if (Array.isArray(content)) {
-        return content
-            .map(
-                (block: {
-                    type?: string;
-                    text?: string;
-                    thinking?: string;
-                    name?: string;
-                    content?: { text?: string }[];
-                }) => {
-                    if (block.type === "text" && block.text) return block.text;
-                    if (block.type === "thinking" && block.thinking) return `[thinking] ${block.thinking}`;
-                    if (block.type === "toolCall" && block.name) return `[tool call: ${block.name}]`;
-                    if (block.type === "toolResult") {
-                        const text = block.content
-                            ?.map((c) => c.text)
-                            .filter(Boolean)
-                            .join("\n");
-                        return text ? `[tool result: ${text}]` : "[tool result]";
-                    }
-                    return "";
-                }
-            )
-            .filter(Boolean)
-            .join("\n");
+        const textParts: string[] = [];
+        const thinkParts: string[] = [];
+
+        for (const block of content) {
+            if (block.type === "text" && block.text) {
+                textParts.push(block.text);
+            } else if (block.type === "thinking" && block.thinking) {
+                thinkParts.push(block.thinking);
+            } else if (block.type === "toolCall" && block.name) {
+                textParts.push(`[tool call: ${block.name}]`);
+            } else if (block.type === "toolResult") {
+                const text = block.content
+                    ?.map((c: any) => c.text)
+                    .filter(Boolean)
+                    .join("\n");
+                textParts.push(text ? `[tool result: ${text}]` : "[tool result]");
+            }
+        }
+
+        return {
+            text: textParts.filter(Boolean).join("\n"),
+            thinking: thinkParts.length > 0 ? thinkParts.join("\n") : undefined,
+        };
     }
-    return String(content ?? "");
+
+    return { text: String(content ?? "") };
 }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const VALID_ROLES: Message["role"][] = ["user", "assistant", "system", "tool"];
+
+function parseRole(r: unknown): Message["role"] {
+    return typeof r === "string" && VALID_ROLES.includes(r as Message["role"])
+        ? (r as Message["role"])
+        : "assistant";
+}
+
+function parseRawMessage(raw: Record<string, unknown>): Message | null {
+    const { text, thinking } = extractContent(raw.content);
+    if (!text && !thinking) return null;
+
+    return {
+        role: parseRole(raw.role),
+        content: text,
+        thinking,
+        id: String(raw.id ?? raw.clientId ?? crypto.randomUUID()),
+        timestamp: typeof raw.timestamp === "number" ? raw.timestamp : undefined,
+    };
+}
+
+/** Upsert a message into the list by id -- update existing or append new */
+function upsertMessage(prev: Message[], msg: Message): Message[] {
+    const idx = prev.findIndex((m) => m.id === msg.id);
+    if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = { ...updated[idx], content: msg.content, thinking: msg.thinking };
+        return updated;
+    }
+    return [...prev, msg];
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function ChatWindow({ sessionKey }: ChatWindowProps) {
     const { call, subscribe } = useOpenClaw();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
     const [loading, setLoading] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+    // Auto-scroll on new messages or when processing state changes
     useLayoutEffect(() => {
         const el = scrollContainerRef.current;
         if (el) el.scrollTop = el.scrollHeight;
-    }, [messages]);
+    }, [messages, isProcessing]);
 
-    // Fetch chat history when session changes
+    // ---- Fetch chat history when session changes ----
     useEffect(() => {
         if (!sessionKey) return;
 
         const fetchHistory = async () => {
             setLoading(true);
+            setIsProcessing(false);
             try {
-                // Gateway method: chat.history
-                // Params: { sessionKey: string, limit: number }
-                // Response: { sessionKey, sessionId?, messages: Array<{ role, content, timestamp?, ... }> }
                 const res: unknown = await call("chat.history", { sessionKey, limit: 200 });
-
                 const { messages: rawMessages } = (res ?? {}) as { messages?: unknown[] };
-                if (Array.isArray(rawMessages)) {
-                    const validRoles: Message["role"][] = ["user", "assistant", "system", "tool"];
-                    const parsed: Message[] = rawMessages
-                        .map((m) => {
-                            const msg = m as Record<string, unknown>;
-                            const text = extractTextFromContent(msg.content);
-                            if (!text) return null;
-                            const r = msg.role;
-                            const role: Message["role"] =
-                                typeof r === "string" && validRoles.includes(r as Message["role"])
-                                    ? (r as Message["role"])
-                                    : "assistant";
-                            return {
-                                role,
-                                content: text,
-                                id: String(msg.id ?? msg.clientId ?? crypto.randomUUID()),
-                                timestamp: typeof msg.timestamp === "number" ? msg.timestamp : undefined,
-                            };
-                        })
-                        .filter(Boolean) as Message[];
 
+                if (Array.isArray(rawMessages)) {
+                    const parsed = rawMessages
+                        .map((m) => parseRawMessage(m as Record<string, unknown>))
+                        .filter(Boolean) as Message[];
                     setMessages(parsed);
                 }
             } catch (err) {
@@ -107,55 +126,46 @@ export default function ChatWindow({ sessionKey }: ChatWindowProps) {
         fetchHistory();
     }, [sessionKey, call]);
 
-    // Subscribe to real-time events for this session
+    // ---- Subscribe to real-time events ----
     useEffect(() => {
         if (!sessionKey) return;
 
         return subscribe((msg) => {
             if (msg.type !== "event") return;
 
-            // The gateway broadcasts "chat" events with a payload containing sessionKey + message
             const payload = msg.payload as Record<string, unknown> | null;
             if (!payload) return;
+            if (payload.sessionKey !== sessionKey) return;
 
-            const eventSessionKey = payload.sessionKey;
-            if (eventSessionKey !== sessionKey) return;
-
-            // A "chat" event with a message means the agent produced a new message
             if (msg.event === "chat" && payload.message) {
-                const m = payload.message as Record<string, unknown>;
-                const text = extractTextFromContent(m.content);
-                if (text) {
-                    const validRoles: Message["role"][] = ["user", "assistant", "system", "tool"];
-                    const r = m.role;
-                    const role: Message["role"] =
-                        typeof r === "string" && validRoles.includes(r as Message["role"])
-                            ? (r as Message["role"])
-                            : "assistant";
-                    setMessages((prev) => [
-                        ...prev,
-                        {
-                            role,
-                            content: text,
-                            id: String(m.id ?? crypto.randomUUID()),
-                            timestamp: typeof m.timestamp === "number" ? m.timestamp : undefined,
-                        },
-                    ]);
+                const parsed = parseRawMessage(payload.message as Record<string, unknown>);
+                if (parsed) {
+                    // Turn off processing indicator when we get an assistant response
+                    if (parsed.role === "assistant") {
+                        setIsProcessing(false);
+                    }
+                    setMessages((prev) => upsertMessage(prev, parsed));
                 }
             }
         });
     }, [sessionKey, subscribe]);
 
+    // ---- Send message ----
     const handleSend = async () => {
         if (!inputValue.trim() || !sessionKey) return;
 
-        const userMsg: Message = { role: "user", content: inputValue, id: crypto.randomUUID(), timestamp: Date.now() };
+        const userMsg: Message = {
+            role: "user",
+            content: inputValue,
+            id: crypto.randomUUID(),
+            timestamp: Date.now(),
+        };
+
         setMessages((prev) => [...prev, userMsg]);
         setInputValue("");
+        setIsProcessing(true);
 
         try {
-            // Gateway method: chat.send
-            // Params: { sessionKey, message, deliver, timeoutMs, idempotencyKey }
             await call("chat.send", {
                 sessionKey,
                 message: userMsg.content,
@@ -165,10 +175,13 @@ export default function ChatWindow({ sessionKey }: ChatWindowProps) {
             });
         } catch (err) {
             console.error("Failed to send message:", err);
+        } finally {
+            setIsProcessing(false);
         }
     };
 
-    // Extract agent name from session key (e.g. "agent:scout:web-abc" → "scout")
+    // ---- Render ----
+
     const agentName = sessionKey?.split(":")[1] ?? null;
 
     if (!sessionKey) {
@@ -179,7 +192,8 @@ export default function ChatWindow({ sessionKey }: ChatWindowProps) {
                 </div>
                 <h3 className="text-lg font-medium text-foreground">No Session Selected</h3>
                 <p className="max-w-sm mt-2 text-muted-foreground">
-                    Click an agent from the sidebar to start a new conversation, or select an existing session.
+                    Click an agent from the sidebar to start a new conversation, or select an
+                    existing session.
                 </p>
             </div>
         );
@@ -193,9 +207,11 @@ export default function ChatWindow({ sessionKey }: ChatWindowProps) {
             >
                 <div className="space-y-6 max-w-4xl mx-auto w-full">
                     {loading && (
-                        <div className="text-center text-sm text-muted-foreground py-4">Loading history...</div>
+                        <div className="text-center text-sm text-muted-foreground py-4">
+                            Loading history...
+                        </div>
                     )}
-                    {!loading && messages.length === 0 && (
+                    {!loading && messages.length === 0 && !isProcessing && (
                         <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in duration-500">
                             <div className="bg-background p-3 rounded-full shadow-sm mb-3 border border-border">
                                 <Bot size={32} className="text-muted-foreground/50" />
@@ -208,52 +224,15 @@ export default function ChatWindow({ sessionKey }: ChatWindowProps) {
                             </p>
                         </div>
                     )}
-                    {messages.map((msg, idx) => (
-                        <div
-                            key={msg.id || idx}
-                            className={clsx("flex w-full", msg.role === "user" ? "justify-end" : "justify-start")}
-                        >
-                            <div
-                                className={clsx(
-                                    "flex max-w-[80%] md:max-w-[70%]",
-                                    msg.role === "user" ? "flex-row-reverse" : "flex-row"
-                                )}
-                            >
-                                <Avatar
-                                    className={clsx(
-                                        "h-8 w-8 mt-1 border shadow-sm shrink-0",
-                                        msg.role === "user" ? "ml-3 border-transparent" : "mr-3 border-border"
-                                    )}
-                                >
-                                    <AvatarFallback
-                                        className={clsx(
-                                            "text-xs font-medium",
-                                            msg.role === "user"
-                                                ? "bg-primary text-primary-foreground"
-                                                : "bg-background text-foreground"
-                                        )}
-                                    >
-                                        {msg.role === "user" ? <UserIcon size={14} /> : <Bot size={16} />}
-                                    </AvatarFallback>
-                                </Avatar>
 
-                                <Card
-                                    className={clsx(
-                                        "p-4 shadow-sm text-[15px] leading-relaxed whitespace-pre-wrap border-0",
-                                        msg.role === "user"
-                                            ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
-                                            : "bg-card text-card-foreground border border-border rounded-2xl rounded-tl-sm"
-                                    )}
-                                >
-                                    {msg.content}
-                                </Card>
-                            </div>
-                        </div>
+                    {messages.map((msg) => (
+                        <ChatBubble key={msg.id} message={msg} />
                     ))}
+
+                    {isProcessing && <ThinkingIndicator />}
                 </div>
             </div>
 
-            {/* Input */}
             <ChatInput
                 inputValue={inputValue}
                 setInputValue={setInputValue}
