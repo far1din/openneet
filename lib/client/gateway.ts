@@ -62,6 +62,12 @@ export type GatewayBrowserClientOptions = {
 // 4008 = application-defined code (browser rejects 1008 "Policy Violation")
 const CONNECT_FAILED_CLOSE_CODE = 4008;
 
+export type AgentInfo = {
+    id: string;
+    alias?: string;
+    // Add other known fields if available, e.g. status, capabilities
+};
+
 export class GatewayBrowserClient {
     private ws: WebSocket | null = null;
     private pending = new Map<string, Pending>();
@@ -308,5 +314,26 @@ export class GatewayBrowserClient {
         this.connectTimer = window.setTimeout(() => {
             void this.sendConnect();
         }, 750);
+    }
+
+    async listAgents(): Promise<AgentInfo[]> {
+        return this.request<AgentInfo[]>("agents.list", {});
+    }
+
+    sendEvent(event: string, payload?: unknown) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.warn("Cannot send event: gateway not connected");
+            return;
+        }
+        const frame = { type: "event", event, payload };
+        this.ws.send(JSON.stringify(frame));
+    }
+
+    /**
+     * General method to send a request and wait for a response.
+     * (Alias for request())
+     */
+    sendRequest<T = unknown>(method: string, params?: unknown): Promise<T> {
+        return this.request<T>(method, params);
     }
 }
