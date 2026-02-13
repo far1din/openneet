@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import "./globals.css";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { GatewayProvider } from "@/lib/client/gateway-context";
 
 const dmSans = DM_Sans({
     variable: "--font-dm-sans",
@@ -17,7 +17,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     return (
         <html lang="en">
             <body className={`${dmSans.className} antialiased`}>
-                <TooltipProvider>{children}</TooltipProvider>
+                <GatewayProvider>{children}</GatewayProvider>
             </body>
         </html>
     );
