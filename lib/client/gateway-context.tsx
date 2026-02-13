@@ -1,7 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { GatewayBrowserClient, type GatewayHelloOk, type GatewayEventFrame } from "./gateway";
+
+type GatewayEventListener = (evt: GatewayEventFrame) => void;
 
 interface GatewayContextType {
     client: GatewayBrowserClient | null;
@@ -11,6 +13,8 @@ interface GatewayContextType {
     hello: GatewayHelloOk | null;
     connect: (url: string, token?: string, password?: string) => void;
     disconnect: () => void;
+    addListener: (cb: GatewayEventListener) => void;
+    removeListener: (cb: GatewayEventListener) => void;
 }
 
 const GatewayContext = createContext<GatewayContextType | undefined>(undefined);
@@ -21,6 +25,17 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
     const [connecting, setConnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [hello, setHello] = useState<GatewayHelloOk | null>(null);
+
+    // Use a ref for listeners to avoid re-creating the connect function or triggering re-renders
+    const listenersRef = useRef<Set<GatewayEventListener>>(new Set());
+
+    const addListener = useCallback((cb: GatewayEventListener) => {
+        listenersRef.current.add(cb);
+    }, []);
+
+    const removeListener = useCallback((cb: GatewayEventListener) => {
+        listenersRef.current.delete(cb);
+    }, []);
 
     const connect = useCallback(
         (url: string, token?: string, password?: string) => {
@@ -44,6 +59,14 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
                 },
                 onEvent: (evt: GatewayEventFrame) => {
                     console.log("Gateway event:", evt);
+                    // Broadcast to all listeners
+                    listenersRef.current.forEach((cb) => {
+                        try {
+                            cb(evt);
+                        } catch (err) {
+                            console.error("Error in gateway event listener:", err);
+                        }
+                    });
                 },
                 onClose: (info) => {
                     console.log("Gateway closed:", info);
@@ -93,6 +116,8 @@ export function GatewayProvider({ children }: { children: React.ReactNode }) {
                 hello,
                 connect,
                 disconnect,
+                addListener,
+                removeListener,
             }}
         >
             {children}
@@ -106,4 +131,15 @@ export function useGateway() {
         throw new Error("useGateway must be used within a GatewayProvider");
     }
     return context;
+}
+
+export function useGatewayEvent(handler: GatewayEventListener) {
+    const { addListener, removeListener } = useGateway();
+
+    useEffect(() => {
+        addListener(handler);
+        return () => {
+            removeListener(handler);
+        };
+    }, [addListener, removeListener, handler]);
 }
